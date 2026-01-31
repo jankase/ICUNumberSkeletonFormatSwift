@@ -108,6 +108,40 @@ public struct ICUNumberSkeletonFormatStyle<Value: BinaryFloatingPoint>: FormatSt
     public let locale: Locale
 
     private let skeleton: String
+    
+    // MARK: - Codable
+    
+    enum CodingKeys: String, CodingKey {
+        case options
+        case locale
+        case skeleton
+    }
+    
+    public init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        self.options = try container.decode(SkeletonOptions.self, forKey: .options)
+        self.locale = try container.decode(Locale.self, forKey: .locale)
+        self.skeleton = try container.decode(String.self, forKey: .skeleton)
+    }
+    
+    public func encode(to encoder: Encoder) throws {
+        var container = encoder.container(keyedBy: CodingKeys.self)
+        try container.encode(options, forKey: .options)
+        try container.encode(locale, forKey: .locale)
+        try container.encode(skeleton, forKey: .skeleton)
+    }
+    
+    // MARK: - Hashable
+    
+    public func hash(into hasher: inout Hasher) {
+        hasher.combine(options)
+        hasher.combine(locale)
+        hasher.combine(skeleton)
+    }
+    
+    public static func == (lhs: ICUNumberSkeletonFormatStyle, rhs: ICUNumberSkeletonFormatStyle) -> Bool {
+        lhs.options == rhs.options && lhs.locale == rhs.locale && lhs.skeleton == rhs.skeleton
+    }
 
     /// Creates a new format style with the given skeleton string.
     ///
@@ -294,7 +328,7 @@ public struct ICUNumberSkeletonFormatStyle<Value: BinaryFloatingPoint>: FormatSt
         case .never:
             return format.sign(strategy: .never)
         case .exceptZero, .accountingExceptZero:
-            return format.sign(strategy: .always(includingZero: false))
+            return format.sign(strategy: .always())
         case .accounting:
             return format.sign(strategy: .automatic)
         case .negative:
@@ -381,9 +415,9 @@ public struct ICUNumberSkeletonFormatStyle<Value: BinaryFloatingPoint>: FormatSt
         case .accountingAlways:
             return format.sign(strategy: .accountingAlways())
         case .exceptZero:
-            return format.sign(strategy: .always(includingZero: false))
+            return format.sign(strategy: .always())
         case .accountingExceptZero:
-            return format.sign(strategy: .accountingAlways(includingZero: false))
+            return format.sign(strategy: .accountingAlways())
         case .negative:
             return format.sign(strategy: .automatic)
         }
@@ -462,7 +496,7 @@ public struct ICUNumberSkeletonFormatStyle<Value: BinaryFloatingPoint>: FormatSt
         case .never:
             return format.sign(strategy: .never)
         case .exceptZero, .accountingExceptZero:
-            return format.sign(strategy: .always(includingZero: false))
+            return format.sign(strategy: .always())
         case .accounting, .negative:
             return format.sign(strategy: .automatic)
         }
@@ -524,6 +558,32 @@ public struct ICUNumberSkeletonIntegerFormatStyle<Value: BinaryInteger>: FormatS
     public typealias FormatOutput = String
 
     private let doubleStyle: ICUNumberSkeletonFormatStyle<Double>
+    
+    // MARK: - Codable
+    
+    enum CodingKeys: String, CodingKey {
+        case doubleStyle
+    }
+    
+    public init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        self.doubleStyle = try container.decode(ICUNumberSkeletonFormatStyle<Double>.self, forKey: .doubleStyle)
+    }
+    
+    public func encode(to encoder: Encoder) throws {
+        var container = encoder.container(keyedBy: CodingKeys.self)
+        try container.encode(doubleStyle, forKey: .doubleStyle)
+    }
+    
+    // MARK: - Hashable
+    
+    public func hash(into hasher: inout Hasher) {
+        hasher.combine(doubleStyle)
+    }
+    
+    public static func == (lhs: ICUNumberSkeletonIntegerFormatStyle, rhs: ICUNumberSkeletonIntegerFormatStyle) -> Bool {
+        lhs.doubleStyle == rhs.doubleStyle
+    }
 
     /// Creates a new format style with the given skeleton string.
     ///
@@ -584,6 +644,32 @@ public struct ICUNumberSkeletonDecimalFormatStyle: FormatStyle, Sendable {
     public typealias FormatOutput = String
 
     private let doubleStyle: ICUNumberSkeletonFormatStyle<Double>
+    
+    // MARK: - Codable
+    
+    enum CodingKeys: String, CodingKey {
+        case doubleStyle
+    }
+    
+    public init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        self.doubleStyle = try container.decode(ICUNumberSkeletonFormatStyle<Double>.self, forKey: .doubleStyle)
+    }
+    
+    public func encode(to encoder: Encoder) throws {
+        var container = encoder.container(keyedBy: CodingKeys.self)
+        try container.encode(doubleStyle, forKey: .doubleStyle)
+    }
+    
+    // MARK: - Hashable
+    
+    public func hash(into hasher: inout Hasher) {
+        hasher.combine(doubleStyle)
+    }
+    
+    public static func == (lhs: ICUNumberSkeletonDecimalFormatStyle, rhs: ICUNumberSkeletonDecimalFormatStyle) -> Bool {
+        lhs.doubleStyle == rhs.doubleStyle
+    }
 
     /// Creates a new format style with the given skeleton string.
     ///

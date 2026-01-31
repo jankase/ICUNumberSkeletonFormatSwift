@@ -263,8 +263,13 @@ struct FormatStyleProtocolTests {
 
     @Test("ICUNumberSkeletonFormatStyle conforms to FormatStyle")
     func formatStyleConformance() {
-        let style: any FormatStyle = ICUNumberSkeletonFormatStyle<Double>(skeleton: ".00", locale: usLocale)
-        let result = style.format(123.45)
+        // Test that ICUNumberSkeletonFormatStyle can be used where FormatStyle is expected
+        func testFormatStyle<F: FormatStyle>(_ style: F, value: F.FormatInput) -> F.FormatOutput {
+            return style.format(value)
+        }
+        
+        let style = ICUNumberSkeletonFormatStyle<Double>(skeleton: ".00", locale: usLocale)
+        let result = testFormatStyle(style, value: 123.45)
         #expect(result == "123.45")
     }
 

@@ -1,12 +1,12 @@
 import Foundation
 
 /// Represents the parsed options from an ICU number skeleton string.
-public struct SkeletonOptions: Sendable, Equatable {
+public struct SkeletonOptions: Sendable, Equatable, Codable, Hashable {
 
     // MARK: - Notation
 
     /// The notation style for number formatting.
-    public enum Notation: Sendable, Equatable {
+    public enum Notation: Sendable, Equatable, Codable, Hashable {
         case simple
         case scientific
         case engineering
@@ -17,7 +17,7 @@ public struct SkeletonOptions: Sendable, Equatable {
     // MARK: - Unit
 
     /// The unit type for number formatting.
-    public enum Unit: Sendable, Equatable {
+    public enum Unit: Sendable, Equatable, Codable, Hashable {
         case none
         case percent
         case permille
@@ -26,7 +26,7 @@ public struct SkeletonOptions: Sendable, Equatable {
     }
 
     /// The width for displaying units.
-    public enum UnitWidth: Sendable, Equatable {
+    public enum UnitWidth: Sendable, Equatable, Codable, Hashable {
         case narrow
         case short
         case fullName
@@ -39,7 +39,7 @@ public struct SkeletonOptions: Sendable, Equatable {
     // MARK: - Precision
 
     /// Precision specification for number formatting.
-    public enum Precision: Sendable, Equatable {
+    public enum Precision: Sendable, Equatable, Codable, Hashable {
         /// Use integer precision (no decimal places).
         case integer
         /// Fixed number of fraction digits.
@@ -60,7 +60,7 @@ public struct SkeletonOptions: Sendable, Equatable {
     // MARK: - Rounding Mode
 
     /// The rounding mode for number formatting.
-    public enum RoundingMode: Sendable, Equatable {
+    public enum RoundingMode: Sendable, Equatable, Codable, Hashable {
         case ceiling
         case floor
         case down
@@ -74,7 +74,7 @@ public struct SkeletonOptions: Sendable, Equatable {
     // MARK: - Integer Width
 
     /// Specifies the minimum and maximum integer digits.
-    public struct IntegerWidth: Sendable, Equatable {
+    public struct IntegerWidth: Sendable, Equatable, Codable, Hashable {
         public var minDigits: Int
         public var maxDigits: Int?
 
@@ -87,7 +87,7 @@ public struct SkeletonOptions: Sendable, Equatable {
     // MARK: - Grouping
 
     /// Grouping strategy for number formatting.
-    public enum Grouping: Sendable, Equatable {
+    public enum Grouping: Sendable, Equatable, Codable, Hashable {
         case auto
         case off
         case min2
@@ -97,7 +97,7 @@ public struct SkeletonOptions: Sendable, Equatable {
     // MARK: - Sign Display
 
     /// Sign display strategy for number formatting.
-    public enum SignDisplay: Sendable, Equatable {
+    public enum SignDisplay: Sendable, Equatable, Codable, Hashable {
         case auto
         case always
         case never
@@ -111,7 +111,7 @@ public struct SkeletonOptions: Sendable, Equatable {
     // MARK: - Decimal Separator
 
     /// Decimal separator display strategy.
-    public enum DecimalSeparator: Sendable, Equatable {
+    public enum DecimalSeparator: Sendable, Equatable, Codable, Hashable {
         case auto
         case always
     }
