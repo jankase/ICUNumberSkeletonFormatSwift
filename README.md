@@ -1,11 +1,13 @@
 # ICUNumberSkeletonFormat
 
-A Swift package that provides number formatting using ICU Number Skeleton syntax. This package allows you to use compact, locale-independent skeleton strings to configure number formatting across all Apple platforms.
+A Swift package that provides number formatting using ICU Number Skeleton syntax with the modern FormatStyle API. This package allows you to use compact, locale-independent skeleton strings to configure number formatting across all Apple platforms.
 
 ## Features
 
 - Parse and apply ICU Number Skeleton format strings
+- Built on Swift's modern FormatStyle API
 - Support for all Apple platforms (iOS, macOS, tvOS, watchOS, visionOS)
+- Swift 6 with full concurrency support
 - Comprehensive formatting options including:
   - Notation styles (simple, scientific, engineering, compact)
   - Currency and unit formatting
@@ -15,11 +17,10 @@ A Swift package that provides number formatting using ICU Number Skeleton syntax
   - Sign display options
   - Decimal separator control
 - Thread-safe `Sendable` types
-- Swift 5.9+ with strict concurrency support
 
 ## Requirements
 
-- Swift 5.9+
+- Swift 6.0+
 - iOS 17.0+ / macOS 14.0+ / tvOS 17.0+ / watchOS 10.0+ / visionOS 1.0+
 
 ## Installation
@@ -41,88 +42,88 @@ Or add it via Xcode:
 
 ## Usage
 
-### Basic Usage
+### Basic Usage with FormatStyle
 
 ```swift
 import ICUNumberSkeletonFormat
 
-// Create a formatter with a skeleton string
-let formatter = try ICUNumberSkeletonFormat(skeleton: "currency/USD .00")
-let formatted = formatter.format(1234.5) // "$1,234.50"
+// Using the .formatted() extension
+let formatted = 1234.5.formatted(icuSkeleton: "currency/USD .00") // "$1,234.50"
 
-// Format with different number types
-formatter.format(42)              // Integer
-formatter.format(3.14159)         // Double
-formatter.format(Decimal("99.99")) // Decimal
+// Using the FormatStyle protocol
+let style = ICUNumberSkeletonFormatStyle<Double>(skeleton: "currency/USD .00")
+let result = style.format(1234.5) // "$1,234.50"
+
+// Using the static .icuSkeleton method
+let value = 1234.5.formatted(.icuSkeleton(".00")) // "1,234.50"
 ```
 
 ### Currency Formatting
 
 ```swift
 // Using skeleton string
-let usdFormatter = try ICUNumberSkeletonFormat(skeleton: "currency/USD .00")
-usdFormatter.format(1234.56) // "$1,234.56"
+let usdStyle = ICUNumberSkeletonFormatStyle<Double>(skeleton: "currency/USD .00")
+usdStyle.format(1234.56) // "$1,234.56"
 
 // Using convenience method
-let euroFormatter = try ICUNumberSkeletonFormat.currency("EUR", locale: Locale(identifier: "de_DE"))
-euroFormatter.format(1234.56) // "1.234,56 €"
+let euroStyle = ICUNumberSkeletonFormatStyle<Double>.currency("EUR", locale: Locale(identifier: "de_DE"))
+euroStyle.format(1234.56) // "1.234,56 €"
 
-// With unit width options
-let formatter = try ICUNumberSkeletonFormat(skeleton: "currency/USD unit-width-iso-code")
-formatter.format(100) // "USD 100.00"
+// Using extension
+99.99.formatted(icuSkeleton: "currency/USD") // "$99.99"
 ```
 
 ### Percent Formatting
 
 ```swift
-let percentFormatter = try ICUNumberSkeletonFormat(skeleton: "percent")
-percentFormatter.format(0.25) // "25%"
+let percentStyle = ICUNumberSkeletonFormatStyle<Double>(skeleton: "percent")
+percentStyle.format(0.25) // "25%"
 
 // Or use the convenience method
-let formatter = try ICUNumberSkeletonFormat.percent()
-formatter.format(0.5) // "50%"
+let style = ICUNumberSkeletonFormatStyle<Double>.percent()
+style.format(0.5) // "50%"
 ```
 
 ### Scientific Notation
 
 ```swift
-let scientificFormatter = try ICUNumberSkeletonFormat(skeleton: "scientific")
-scientificFormatter.format(12345.0) // "1.2345E4"
+let scientificStyle = ICUNumberSkeletonFormatStyle<Double>(skeleton: "scientific")
+scientificStyle.format(12345.0) // "1.2345E4"
 
 // Or use the convenience method
-let formatter = try ICUNumberSkeletonFormat.scientific()
+let style = ICUNumberSkeletonFormatStyle<Double>.scientific()
 ```
 
 ### Compact Notation
 
 ```swift
 // Short compact notation (1K, 1M, etc.)
-let shortFormatter = try ICUNumberSkeletonFormat(skeleton: "compact-short")
-shortFormatter.format(1500) // "1.5K"
+let shortStyle = ICUNumberSkeletonFormatStyle<Double>.compact(.short)
+shortStyle.format(1500) // "1.5K"
 
 // Long compact notation (1 thousand, etc.)
-let longFormatter = try ICUNumberSkeletonFormat(skeleton: "compact-long")
-longFormatter.format(1500) // "1.5 thousand"
+let longStyle = ICUNumberSkeletonFormatStyle<Double>.compact(.long)
+longStyle.format(1500) // "1.5 thousand"
 ```
 
 ### Precision Control
 
 ```swift
 // Exactly 2 fraction digits
-let exact = try ICUNumberSkeletonFormat(skeleton: ".00")
+let exact = ICUNumberSkeletonFormatStyle<Double>(skeleton: ".00")
 exact.format(1.5) // "1.50"
 
 // 1-2 fraction digits
-let range = try ICUNumberSkeletonFormat(skeleton: ".0#")
+let range = ICUNumberSkeletonFormatStyle<Double>(skeleton: ".0#")
 range.format(1.5) // "1.5"
 range.format(1.56) // "1.56"
 
 // Significant digits
-let sigDigits = try ICUNumberSkeletonFormat(skeleton: "@@@")
+let sigDigits = ICUNumberSkeletonFormatStyle<Double>(skeleton: "@@@")
 sigDigits.format(12345) // "12,300" (3 significant digits)
 
 // Integer precision
-let integer = try ICUNumberSkeletonFormat(skeleton: "precision-integer")
+let integer = ICUNumberSkeletonFormatStyle<Double>(skeleton: "precision-integer")
 integer.format(1.9) // "2"
 ```
 
@@ -130,15 +131,15 @@ integer.format(1.9) // "2"
 
 ```swift
 // Round toward positive infinity
-let ceiling = try ICUNumberSkeletonFormat(skeleton: "precision-integer rounding-mode-ceiling")
+let ceiling = ICUNumberSkeletonFormatStyle<Double>(skeleton: "precision-integer rounding-mode-ceiling")
 ceiling.format(1.1) // "2"
 
 // Round toward negative infinity
-let floor = try ICUNumberSkeletonFormat(skeleton: "precision-integer rounding-mode-floor")
+let floor = ICUNumberSkeletonFormatStyle<Double>(skeleton: "precision-integer rounding-mode-floor")
 floor.format(1.9) // "1"
 
 // Banker's rounding (half-even)
-let halfEven = try ICUNumberSkeletonFormat(skeleton: "precision-integer rounding-mode-half-even")
+let halfEven = ICUNumberSkeletonFormatStyle<Double>(skeleton: "precision-integer rounding-mode-half-even")
 halfEven.format(2.5) // "2"
 halfEven.format(3.5) // "4"
 ```
@@ -147,11 +148,11 @@ halfEven.format(3.5) // "4"
 
 ```swift
 // No grouping separators
-let noGroup = try ICUNumberSkeletonFormat(skeleton: "group-off")
+let noGroup = ICUNumberSkeletonFormatStyle<Double>(skeleton: "group-off")
 noGroup.format(1234567) // "1234567"
 
 // Auto grouping (locale-dependent)
-let autoGroup = try ICUNumberSkeletonFormat(skeleton: "group-auto")
+let autoGroup = ICUNumberSkeletonFormatStyle<Double>(skeleton: "group-auto")
 autoGroup.format(1234567) // "1,234,567"
 ```
 
@@ -159,15 +160,15 @@ autoGroup.format(1234567) // "1,234,567"
 
 ```swift
 // Always show sign
-let alwaysSign = try ICUNumberSkeletonFormat(skeleton: "sign-always")
+let alwaysSign = ICUNumberSkeletonFormatStyle<Double>(skeleton: "sign-always")
 alwaysSign.format(123) // "+123"
 
 // Never show sign
-let neverSign = try ICUNumberSkeletonFormat(skeleton: "sign-never")
+let neverSign = ICUNumberSkeletonFormatStyle<Double>(skeleton: "sign-never")
 neverSign.format(-123) // "123"
 
 // Accounting format (parentheses for negative)
-let accounting = try ICUNumberSkeletonFormat(skeleton: "currency/USD sign-accounting")
+let accounting = ICUNumberSkeletonFormatStyle<Double>(skeleton: "currency/USD sign-accounting")
 accounting.format(-100) // "($100.00)"
 ```
 
@@ -175,27 +176,19 @@ accounting.format(-100) // "($100.00)"
 
 ```swift
 // Multiply by 100 (useful for basis points or manual percent)
-let scaled = try ICUNumberSkeletonFormat(skeleton: "scale/100")
+let scaled = ICUNumberSkeletonFormatStyle<Double>(skeleton: "scale/100")
 scaled.format(0.5) // "50"
-```
-
-### Integer Width
-
-```swift
-// Minimum 3 integer digits (zero-padded)
-let padded = try ICUNumberSkeletonFormat(skeleton: "integer-width/000")
-padded.format(5) // "005"
 ```
 
 ### Combining Options
 
 ```swift
 // Complex skeleton with multiple options
-let formatter = try ICUNumberSkeletonFormat(
+let style = ICUNumberSkeletonFormatStyle<Double>(
     skeleton: "currency/EUR .00 group-auto sign-always rounding-mode-half-up",
     locale: Locale(identifier: "de_DE")
 )
-formatter.format(1234.555) // "+1.234,56 €"
+style.format(1234.555) // "+1.234,56 €"
 ```
 
 ### Using Pre-parsed Options
@@ -207,8 +200,26 @@ options.precision = .fractionDigits(min: 2, max: 2)
 options.grouping = .off
 options.signDisplay = .always
 
-let formatter = ICUNumberSkeletonFormat(options: options)
-formatter.format(1234.5) // "+1234.50"
+let style = ICUNumberSkeletonFormatStyle<Double>(options: options)
+style.format(1234.5) // "+1234.50"
+```
+
+### Formatting Different Number Types
+
+```swift
+// Integers
+42.formatted(icuSkeleton: ".00") // "42.00"
+
+// Decimals
+let decimal = Decimal(string: "1234.5")!
+decimal.formatted(icuSkeleton: ".00") // "1,234.50"
+
+// Using typed format styles
+let intStyle = ICUNumberSkeletonIntegerFormatStyle<Int>(skeleton: "group-off")
+intStyle.format(1234567) // "1234567"
+
+let decimalStyle = ICUNumberSkeletonDecimalFormatStyle(skeleton: ".00")
+decimalStyle.format(Decimal(string: "1234.5")!) // "1,234.50"
 ```
 
 ## Skeleton Syntax Reference
@@ -314,3 +325,4 @@ MIT License - see [LICENSE](LICENSE) for details.
 
 - [ICU Number Skeletons](https://unicode-org.github.io/icu/userguide/format_parse/numbers/skeletons.html)
 - [Unicode Technical Standard #35](https://www.unicode.org/reports/tr35/tr35-numbers.html)
+- [Swift FormatStyle Documentation](https://developer.apple.com/documentation/foundation/formatstyle)
