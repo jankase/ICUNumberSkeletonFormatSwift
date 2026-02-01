@@ -170,6 +170,14 @@ public struct ICUNumberSkeletonFormatStyle<Value: BinaryFloatingPoint>: FormatSt
     public func format(_ value: Value) -> String {
         let doubleValue = Double(value)
 
+        // Handle special floating-point values
+        if doubleValue.isNaN {
+            return "NaN"
+        }
+        if doubleValue.isInfinite {
+            return doubleValue > 0 ? "∞" : "-∞"
+        }
+
         // Apply scale if specified
         let scaledValue: Double
         if let scale = options.scale {
@@ -193,12 +201,26 @@ public struct ICUNumberSkeletonFormatStyle<Value: BinaryFloatingPoint>: FormatSt
             return formatPercent(value)
         }
 
+        // Handle permille formatting
+        if case .permille = options.unit {
+            return formatPermille(value)
+        }
+
+        // Handle measure unit formatting
+        if case .measureUnit(let type, let subtype) = options.unit {
+            return formatMeasureUnit(value, type: type, subtype: subtype)
+        }
+
         // Handle decimal/other formatting
         return formatDecimal(value)
     }
 
     private func formatCurrency(_ value: Double, code: String) -> String {
-        var format = Decimal.FormatStyle.Currency(code: code, locale: locale)
+        let effectiveLocale = applyNumberingSystem(to: locale)
+        var format = Decimal.FormatStyle.Currency(code: code, locale: effectiveLocale)
+
+        // Apply unit width
+        format = applyCurrencyWidth(to: format)
 
         // Apply precision
         format = applyCurrencyPrecision(to: format)
@@ -207,7 +229,7 @@ public struct ICUNumberSkeletonFormatStyle<Value: BinaryFloatingPoint>: FormatSt
         format = applyCurrencyGrouping(to: format)
 
         // Apply sign display
-        format = applyCurrencySign(to: format)
+        format = applyCurrencySign(to: format, value: value)
 
         // Apply decimal separator
         format = applyCurrencyDecimalSeparator(to: format)
@@ -219,7 +241,8 @@ public struct ICUNumberSkeletonFormatStyle<Value: BinaryFloatingPoint>: FormatSt
     }
 
     private func formatPercent(_ value: Double) -> String {
-        var format = Decimal.FormatStyle.Percent(locale: locale)
+        let effectiveLocale = applyNumberingSystem(to: locale)
+        var format = Decimal.FormatStyle.Percent(locale: effectiveLocale)
 
         // Apply precision
         format = applyPercentPrecision(to: format)
@@ -228,7 +251,7 @@ public struct ICUNumberSkeletonFormatStyle<Value: BinaryFloatingPoint>: FormatSt
         format = applyPercentGrouping(to: format)
 
         // Apply sign display
-        format = applyPercentSign(to: format)
+        format = applyPercentSign(to: format, value: value)
 
         // Apply rounding
         format = applyPercentRounding(to: format)
@@ -236,8 +259,93 @@ public struct ICUNumberSkeletonFormatStyle<Value: BinaryFloatingPoint>: FormatSt
         return Decimal(value).formatted(format)
     }
 
+    private func formatPermille(_ value: Double) -> String {
+        let effectiveLocale = applyNumberingSystem(to: locale)
+        // Scale by 1000 for permille
+        let scaledValue = value * 1000
+        var format = Decimal.FormatStyle(locale: effectiveLocale)
+
+        // Apply precision
+        format = applyDecimalPrecision(to: format)
+
+        // Apply grouping
+        format = applyDecimalGrouping(to: format)
+
+        // Apply sign display (use original value for zero check)
+        format = applyDecimalSign(to: format, value: value)
+
+        // Apply decimal separator
+        format = applyDecimalDecimalSeparator(to: format)
+
+        // Apply rounding
+        format = applyDecimalRounding(to: format)
+
+        let formattedNumber = Decimal(scaledValue).formatted(format)
+        // Append permille symbol
+        return formattedNumber + "\u{2030}" // ‰ symbol
+    }
+
+    private func formatMeasureUnit(_ value: Double, type: String, subtype: String) -> String {
+        let effectiveLocale = applyNumberingSystem(to: locale)
+        
+        // Map type-subtype to Foundation units
+        guard let unit = measureUnitFromTypeSubtype(type: type, subtype: subtype) else {
+            // Fallback to decimal formatting if unit not recognized
+            return formatDecimal(value)
+        }
+
+        // Create measurement
+        let measurement = Measurement(value: value, unit: unit)
+        
+        // Create formatter with appropriate width
+        let formatter = MeasurementFormatter()
+        formatter.locale = effectiveLocale
+        formatter.unitOptions = .providedUnit
+        
+        // Apply unit width if specified
+        if let width = options.unitWidth {
+            switch width {
+            case .narrow:
+                formatter.unitStyle = .short
+            case .short:
+                formatter.unitStyle = .short
+            case .fullName:
+                formatter.unitStyle = .long
+            case .hidden:
+                // Format only the number part
+                var numberFormat = Decimal.FormatStyle(locale: effectiveLocale)
+                numberFormat = applyDecimalPrecision(to: numberFormat)
+                numberFormat = applyDecimalGrouping(to: numberFormat)
+                numberFormat = applyDecimalSign(to: numberFormat, value: value)
+                numberFormat = applyDecimalRounding(to: numberFormat)
+                return Decimal(value).formatted(numberFormat)
+            default:
+                formatter.unitStyle = .medium
+            }
+        }
+
+        // Apply number formatting options through formatter's numberFormatter
+        if let numberFormatter = formatter.numberFormatter {
+            // Apply precision
+            applyPrecisionToNumberFormatter(numberFormatter)
+            
+            // Apply grouping
+            if let grouping = options.grouping {
+                numberFormatter.usesGroupingSeparator = grouping != .off
+            }
+            
+            // Apply rounding mode
+            if let roundingMode = options.roundingMode {
+                numberFormatter.roundingMode = numberFormatterRoundingMode(from: roundingMode)
+            }
+        }
+
+        return formatter.string(from: measurement)
+    }
+
     private func formatDecimal(_ value: Double) -> String {
-        var format = Decimal.FormatStyle(locale: locale)
+        let effectiveLocale = applyNumberingSystem(to: locale)
+        var format = Decimal.FormatStyle(locale: effectiveLocale)
 
         // Apply notation
         format = applyNotation(to: format)
@@ -249,7 +357,7 @@ public struct ICUNumberSkeletonFormatStyle<Value: BinaryFloatingPoint>: FormatSt
         format = applyDecimalGrouping(to: format)
 
         // Apply sign display
-        format = applyDecimalSign(to: format)
+        format = applyDecimalSign(to: format, value: value)
 
         // Apply decimal separator
         format = applyDecimalDecimalSeparator(to: format)
@@ -257,7 +365,167 @@ public struct ICUNumberSkeletonFormatStyle<Value: BinaryFloatingPoint>: FormatSt
         // Apply rounding
         format = applyDecimalRounding(to: format)
 
-        return Decimal(value).formatted(format)
+        // Convert to string
+        var result = Decimal(value).formatted(format)
+
+        // Apply integer width padding/truncation if specified
+        if let intWidth = options.integerWidth {
+            result = applyIntegerWidth(to: result, integerWidth: intWidth, locale: effectiveLocale)
+        }
+
+        return result
+    }
+
+    // MARK: - Helper Methods
+
+    private func applyNumberingSystem(to locale: Locale) -> Locale {
+        // Apply numbering system if specified
+        if let system = options.numberingSystem {
+            var components = Locale.Components(locale: locale)
+            components.numberingSystem = Locale.NumberingSystem(system)
+            return Locale(components: components)
+        }
+        
+        // Apply latin digits override if specified
+        if options.latinDigits {
+            var components = Locale.Components(locale: locale)
+            components.numberingSystem = Locale.NumberingSystem("latn")
+            return Locale(components: components)
+        }
+        
+        return locale
+    }
+
+    private func applyIntegerWidth(to formattedString: String, integerWidth: SkeletonOptions.IntegerWidth, locale: Locale) -> String {
+        // Extract the integer part (before decimal separator or end of string)
+        let decimalSeparator = Locale.current.decimalSeparator ?? "."
+        let parts = formattedString.components(separatedBy: decimalSeparator)
+        
+        guard let integerPart = parts.first else { return formattedString }
+        let fractionalPart = parts.count > 1 ? parts[1] : nil
+        
+        // Remove grouping separators to count actual digits
+        let groupingSeparator = locale.groupingSeparator ?? ","
+        let sign = integerPart.first == "-" || integerPart.first == "+" ? String(integerPart.first!) : ""
+        var digitsOnly = integerPart.filter { $0.isNumber }
+        
+        // Apply minimum width (pad with zeros)
+        while digitsOnly.count < integerWidth.minDigits {
+            digitsOnly = "0" + digitsOnly
+        }
+        
+        // Apply maximum width (truncate from left) if specified
+        if let maxDigits = integerWidth.maxDigits, digitsOnly.count > maxDigits {
+            digitsOnly = String(digitsOnly.suffix(maxDigits))
+        }
+        
+        // Re-apply grouping
+        var formatted = ""
+        let reversedDigits = String(digitsOnly.reversed())
+        for (index, char) in reversedDigits.enumerated() {
+            if index > 0 && index % 3 == 0 && options.grouping != .off {
+                formatted = groupingSeparator + formatted
+            }
+            formatted = String(char) + formatted
+        }
+        
+        // Reconstruct the full number
+        var result = sign + formatted
+        if let frac = fractionalPart {
+            result += decimalSeparator + frac
+        }
+        
+        return result
+    }
+
+    private func measureUnitFromTypeSubtype(type: String, subtype: String) -> Dimension? {
+        // Map ICU measure unit identifiers to Foundation units
+        switch (type, subtype) {
+        // Length
+        case ("length", "meter"): return UnitLength.meters
+        case ("length", "kilometer"): return UnitLength.kilometers
+        case ("length", "centimeter"): return UnitLength.centimeters
+        case ("length", "millimeter"): return UnitLength.millimeters
+        case ("length", "mile"): return UnitLength.miles
+        case ("length", "yard"): return UnitLength.yards
+        case ("length", "foot"): return UnitLength.feet
+        case ("length", "inch"): return UnitLength.inches
+        
+        // Mass
+        case ("mass", "kilogram"): return UnitMass.kilograms
+        case ("mass", "gram"): return UnitMass.grams
+        case ("mass", "milligram"): return UnitMass.milligrams
+        case ("mass", "pound"): return UnitMass.pounds
+        case ("mass", "ounce"): return UnitMass.ounces
+        
+        // Duration
+        case ("duration", "second"): return UnitDuration.seconds
+        case ("duration", "minute"): return UnitDuration.minutes
+        case ("duration", "hour"): return UnitDuration.hours
+        
+        // Temperature
+        case ("temperature", "celsius"): return UnitTemperature.celsius
+        case ("temperature", "fahrenheit"): return UnitTemperature.fahrenheit
+        case ("temperature", "kelvin"): return UnitTemperature.kelvin
+        
+        // Volume
+        case ("volume", "liter"): return UnitVolume.liters
+        case ("volume", "milliliter"): return UnitVolume.milliliters
+        case ("volume", "gallon"): return UnitVolume.gallons
+        case ("volume", "fluid-ounce"): return UnitVolume.fluidOunces
+        
+        // Speed
+        case ("speed", "meter-per-second"): return UnitSpeed.metersPerSecond
+        case ("speed", "kilometer-per-hour"): return UnitSpeed.kilometersPerHour
+        case ("speed", "mile-per-hour"): return UnitSpeed.milesPerHour
+        
+        // Area
+        case ("area", "square-meter"): return UnitArea.squareMeters
+        case ("area", "square-kilometer"): return UnitArea.squareKilometers
+        case ("area", "square-mile"): return UnitArea.squareMiles
+        case ("area", "square-foot"): return UnitArea.squareFeet
+        
+        default: return nil
+        }
+    }
+
+    private func applyPrecisionToNumberFormatter(_ formatter: NumberFormatter) {
+        guard let precision = options.precision else { return }
+        
+        switch precision {
+        case .integer:
+            formatter.minimumFractionDigits = 0
+            formatter.maximumFractionDigits = 0
+        case .fractionDigits(let min, let max):
+            formatter.minimumFractionDigits = min
+            formatter.maximumFractionDigits = max
+        case .significantDigits(let min, let max):
+            formatter.usesSignificantDigits = true
+            formatter.minimumSignificantDigits = min
+            formatter.maximumSignificantDigits = max
+        case .fractionSignificant(let minFrac, let maxFrac, _, _):
+            formatter.minimumFractionDigits = minFrac
+            formatter.maximumFractionDigits = maxFrac
+        case .increment(let value):
+            formatter.roundingIncrement = NSDecimalNumber(decimal: value)
+        case .unlimited:
+            formatter.maximumFractionDigits = 15
+        default:
+            break
+        }
+    }
+
+    private func numberFormatterRoundingMode(from mode: SkeletonOptions.RoundingMode) -> NumberFormatter.RoundingMode {
+        switch mode {
+        case .ceiling: return .ceiling
+        case .floor: return .floor
+        case .down: return .down
+        case .up: return .up
+        case .halfEven: return .halfEven
+        case .halfDown: return .halfDown
+        case .halfUp: return .halfUp
+        case .unnecessary: return .halfEven
+        }
     }
 
     // MARK: - Decimal Format Modifiers
@@ -294,14 +562,23 @@ public struct ICUNumberSkeletonFormatStyle<Value: BinaryFloatingPoint>: FormatSt
         case .currencyStandard, .currencyCash:
             return format
         case .increment(let value):
-            let intValue = NSDecimalNumber(decimal: value).intValue
-            if intValue > 0 {
-                return format.precision(.fractionLength(0))
-            }
-            return format
+            // For increment-based rounding, we use the number of decimal places in the increment
+            let decimalPlaces = numberOfDecimalPlaces(in: value)
+            return format.precision(.fractionLength(decimalPlaces...decimalPlaces))
         case .unlimited:
             return format.precision(.fractionLength(0...15))
         }
+    }
+
+    private func numberOfDecimalPlaces(in decimal: Decimal) -> Int {
+        let nsDecimal = NSDecimalNumber(decimal: decimal)
+        let string = nsDecimal.stringValue
+        
+        if let dotIndex = string.firstIndex(of: ".") {
+            return string.distance(from: string.index(after: dotIndex), to: string.endIndex)
+        }
+        
+        return 0
     }
 
     private func applyDecimalGrouping(to format: Decimal.FormatStyle) -> Decimal.FormatStyle {
@@ -317,8 +594,11 @@ public struct ICUNumberSkeletonFormatStyle<Value: BinaryFloatingPoint>: FormatSt
         }
     }
 
-    private func applyDecimalSign(to format: Decimal.FormatStyle) -> Decimal.FormatStyle {
+    private func applyDecimalSign(to format: Decimal.FormatStyle, value: Double) -> Decimal.FormatStyle {
         guard let signDisplay = options.signDisplay else { return format }
+
+        // Check if value is zero for exceptZero cases
+        let isZero = value == 0.0 || value == -0.0
 
         switch signDisplay {
         case .auto:
@@ -328,7 +608,12 @@ public struct ICUNumberSkeletonFormatStyle<Value: BinaryFloatingPoint>: FormatSt
         case .never:
             return format.sign(strategy: .never)
         case .exceptZero, .accountingExceptZero:
-            return format.sign(strategy: .always())
+            // If value is zero, don't show sign; otherwise always show sign
+            if isZero {
+                return format.sign(strategy: .automatic)
+            } else {
+                return format.sign(strategy: .always())
+            }
         case .accounting:
             return format.sign(strategy: .automatic)
         case .negative:
@@ -366,6 +651,27 @@ public struct ICUNumberSkeletonFormatStyle<Value: BinaryFloatingPoint>: FormatSt
 
     // MARK: - Currency Format Modifiers
 
+    private func applyCurrencyWidth(to format: Decimal.FormatStyle.Currency) -> Decimal.FormatStyle.Currency {
+        guard let width = options.unitWidth else { return format }
+
+        switch width {
+        case .narrow:
+            return format.presentation(.narrow)
+        case .short:
+            return format // default is short
+        case .fullName:
+            return format.presentation(.fullName)
+        case .isoCode:
+            return format.presentation(.isoCode)
+        case .hidden:
+            // Hidden means show no symbol - use isoCode as closest approximation
+            return format.presentation(.isoCode)
+        case .formal, .variant:
+            // These don't have direct equivalents in Foundation
+            return format
+        }
+    }
+
     private func applyCurrencyPrecision(to format: Decimal.FormatStyle.Currency) -> Decimal.FormatStyle.Currency {
         guard let precision = options.precision else { return format }
 
@@ -378,10 +684,17 @@ public struct ICUNumberSkeletonFormatStyle<Value: BinaryFloatingPoint>: FormatSt
             return format.precision(.significantDigits(min...max))
         case .fractionSignificant(let minFrac, let maxFrac, _, _):
             return format.precision(.fractionLength(minFrac...maxFrac))
-        case .currencyStandard, .currencyCash:
+        case .currencyStandard:
+            // Use standard currency precision (default behavior)
             return format
-        case .increment:
-            return format
+        case .currencyCash:
+            // Cash rounding - typically rounds to nearest 0.05 for some currencies
+            // Foundation doesn't have built-in cash rounding, so we'll use increment
+            return format.precision(.fractionLength(0...2))
+        case .increment(let value):
+            // Determine precision from increment value
+            let decimalPlaces = numberOfDecimalPlaces(in: value)
+            return format.precision(.fractionLength(decimalPlaces...decimalPlaces))
         case .unlimited:
             return format.precision(.fractionLength(0...15))
         }
@@ -400,8 +713,11 @@ public struct ICUNumberSkeletonFormatStyle<Value: BinaryFloatingPoint>: FormatSt
         }
     }
 
-    private func applyCurrencySign(to format: Decimal.FormatStyle.Currency) -> Decimal.FormatStyle.Currency {
+    private func applyCurrencySign(to format: Decimal.FormatStyle.Currency, value: Double) -> Decimal.FormatStyle.Currency {
         guard let signDisplay = options.signDisplay else { return format }
+
+        // Check if value is zero for exceptZero cases
+        let isZero = value == 0.0 || value == -0.0
 
         switch signDisplay {
         case .auto:
@@ -415,9 +731,19 @@ public struct ICUNumberSkeletonFormatStyle<Value: BinaryFloatingPoint>: FormatSt
         case .accountingAlways:
             return format.sign(strategy: .accountingAlways())
         case .exceptZero:
-            return format.sign(strategy: .always())
+            // If value is zero, don't show sign; otherwise always show sign
+            if isZero {
+                return format.sign(strategy: .automatic)
+            } else {
+                return format.sign(strategy: .always())
+            }
         case .accountingExceptZero:
-            return format.sign(strategy: .accountingAlways())
+            // If value is zero, use automatic; otherwise use accountingAlways
+            if isZero {
+                return format.sign(strategy: .automatic)
+            } else {
+                return format.sign(strategy: .accountingAlways())
+            }
         case .negative:
             return format.sign(strategy: .automatic)
         }
@@ -465,8 +791,11 @@ public struct ICUNumberSkeletonFormatStyle<Value: BinaryFloatingPoint>: FormatSt
             return format.precision(.significantDigits(min...max))
         case .fractionSignificant(let minFrac, let maxFrac, _, _):
             return format.precision(.fractionLength(minFrac...maxFrac))
-        case .currencyStandard, .currencyCash, .increment:
+        case .currencyStandard, .currencyCash:
             return format
+        case .increment(let value):
+            let decimalPlaces = numberOfDecimalPlaces(in: value)
+            return format.precision(.fractionLength(decimalPlaces...decimalPlaces))
         case .unlimited:
             return format.precision(.fractionLength(0...15))
         }
@@ -485,8 +814,11 @@ public struct ICUNumberSkeletonFormatStyle<Value: BinaryFloatingPoint>: FormatSt
         }
     }
 
-    private func applyPercentSign(to format: Decimal.FormatStyle.Percent) -> Decimal.FormatStyle.Percent {
+    private func applyPercentSign(to format: Decimal.FormatStyle.Percent, value: Double) -> Decimal.FormatStyle.Percent {
         guard let signDisplay = options.signDisplay else { return format }
+
+        // Check if value is zero for exceptZero cases
+        let isZero = value == 0.0 || value == -0.0
 
         switch signDisplay {
         case .auto:
@@ -496,7 +828,12 @@ public struct ICUNumberSkeletonFormatStyle<Value: BinaryFloatingPoint>: FormatSt
         case .never:
             return format.sign(strategy: .never)
         case .exceptZero, .accountingExceptZero:
-            return format.sign(strategy: .always())
+            // If value is zero, don't show sign; otherwise always show sign
+            if isZero {
+                return format.sign(strategy: .automatic)
+            } else {
+                return format.sign(strategy: .always())
+            }
         case .accounting, .negative:
             return format.sign(strategy: .automatic)
         }

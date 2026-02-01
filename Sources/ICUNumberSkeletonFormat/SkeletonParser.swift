@@ -67,11 +67,11 @@ public struct SkeletonParser: Sendable {
     // MARK: - Tokenization
 
     private func tokenize(_ skeleton: String) -> [String] {
-        // Skeleton tokens are separated by spaces
+        // Skeleton tokens are separated by spaces (U+0020) per ICU specification
         // Tokens can contain slashes for options (e.g., "currency/USD")
         skeleton
             .trimmingCharacters(in: .whitespaces)
-            .components(separatedBy: .whitespaces)
+            .components(separatedBy: " ")
             .filter { !$0.isEmpty }
     }
 
@@ -84,10 +84,16 @@ public struct SkeletonParser: Sendable {
             return
         }
 
-        // Handle integer width tokens (digits only like "000")
-        if token.allSatisfy({ $0 == "0" || $0 == "#" }) && !token.isEmpty {
-            try parseIntegerWidthShort(token, into: &options)
-            return
+        // Handle integer width tokens (start with # or 0)
+        if token.first == "0" || token.first == "#" {
+            // Check if it looks like an integer width pattern (only contains 0 and #)
+            if token.allSatisfy({ $0 == "0" || $0 == "#" }) {
+                try parseIntegerWidthShort(token, into: &options)
+                return
+            } else {
+                // Starts with 0 or # but contains other characters - invalid integer width
+                throw SkeletonParseError.invalidIntegerWidth(token)
+            }
         }
 
         // Handle tokens with options (contain /)
@@ -152,7 +158,12 @@ public struct SkeletonParser: Sendable {
 
         // Check for combined fraction/significant: .00/@@@
         if digits.contains("@") {
-            try parseFractionSignificant(digits, into: &options)
+            do {
+                try parseFractionSignificant(digits, into: &options)
+            } catch SkeletonParseError.invalidPrecision {
+                // Re-throw with the full token including the dot
+                throw SkeletonParseError.invalidPrecision(token)
+            }
             return
         }
 
@@ -177,7 +188,7 @@ public struct SkeletonParser: Sendable {
 
     private func parseFractionSignificant(_ digits: String, into options: inout SkeletonOptions) throws {
         // Format: 00/@@@  or similar
-        let parts = digits.split(separator: "/", maxSplits: 1)
+        let parts = digits.split(separator: "/", maxSplits: 1, omittingEmptySubsequences: false)
         guard parts.count == 2 else {
             throw SkeletonParseError.invalidPrecision(digits)
         }
@@ -223,28 +234,40 @@ public struct SkeletonParser: Sendable {
     private func parseIntegerWidthShort(_ token: String, into options: inout SkeletonOptions) throws {
         var minDigits = 0
         var maxDigits: Int? = nil
-        var hasHash = false
+        var hasSeenZero = false
 
         for char in token {
             switch char {
             case "0":
+                hasSeenZero = true
                 minDigits += 1
-                if hasHash {
-                    throw SkeletonParseError.invalidIntegerWidth(token)
+                // Also increment max if we're tracking it
+                if maxDigits != nil {
+                    maxDigits! += 1
                 }
             case "#":
-                hasHash = true
+                // Initialize maxDigits if this is the first # we've seen
                 if maxDigits == nil {
                     maxDigits = minDigits
                 }
                 maxDigits! += 1
+                // If we've already seen a 0, then # coming after is invalid
+                if hasSeenZero {
+                    throw SkeletonParseError.invalidIntegerWidth(token)
+                }
             default:
                 throw SkeletonParseError.invalidIntegerWidth(token)
             }
         }
 
-        if !hasHash {
-            maxDigits = nil // No maximum
+        // Integer width must have at least one required digit (at least one '0')
+        guard hasSeenZero else {
+            throw SkeletonParseError.invalidIntegerWidth(token)
+        }
+
+        // If we never saw #, there's no maximum constraint
+        if maxDigits == nil {
+            maxDigits = nil
         }
 
         options.integerWidth = .init(minDigits: minDigits, maxDigits: maxDigits)
@@ -253,7 +276,7 @@ public struct SkeletonParser: Sendable {
     // MARK: - Slash Token Parsing
 
     private func parseSlashToken(_ token: String, into options: inout SkeletonOptions) throws {
-        let parts = token.split(separator: "/", maxSplits: 1)
+        let parts = token.split(separator: "/", maxSplits: 1, omittingEmptySubsequences: false)
         guard parts.count == 2 else {
             throw SkeletonParseError.invalidToken(token)
         }
@@ -289,11 +312,20 @@ public struct SkeletonParser: Sendable {
 
     private func parseMeasureUnit(_ unit: String, into options: inout SkeletonOptions) throws {
         // Format: type-subtype (e.g., length-meter)
-        let parts = unit.split(separator: "-", maxSplits: 1)
+        let parts = unit.split(separator: "-", maxSplits: 1, omittingEmptySubsequences: false)
         guard parts.count == 2 else {
             throw SkeletonParseError.invalidMeasureUnit(unit)
         }
-        options.unit = .measureUnit(type: String(parts[0]), subtype: String(parts[1]))
+        
+        let type = String(parts[0])
+        let subtype = String(parts[1])
+        
+        // Validate that neither part is empty
+        guard !type.isEmpty, !subtype.isEmpty else {
+            throw SkeletonParseError.invalidMeasureUnit(unit)
+        }
+        
+        options.unit = .measureUnit(type: type, subtype: subtype)
     }
 
     private func parseIntegerWidth(_ value: String, into options: inout SkeletonOptions) throws {
@@ -326,6 +358,11 @@ public struct SkeletonParser: Sendable {
             default:
                 throw SkeletonParseError.invalidIntegerWidth(value)
             }
+        }
+
+        // Integer width must have at least one required digit (at least one '0')
+        guard minDigits > 0 else {
+            throw SkeletonParseError.invalidIntegerWidth(value)
         }
 
         if truncate {
