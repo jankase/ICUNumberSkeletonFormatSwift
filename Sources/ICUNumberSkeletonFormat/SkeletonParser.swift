@@ -1,19 +1,72 @@
 import Foundation
 
 /// Errors that can occur during skeleton parsing.
+///
+/// These errors provide specific information about what went wrong when parsing
+/// an ICU number skeleton string, including the invalid portion of the input.
 public enum SkeletonParseError: Error, Sendable, Equatable {
+    /// An unrecognized or invalid token was encountered.
+    ///
+    /// - Parameter String: The invalid token that was found.
     case invalidToken(String)
+    
+    /// A precision specification is malformed or invalid.
+    ///
+    /// Valid precision formats include:
+    /// - `.00` - Fixed fraction digits
+    /// - `@@@` - Significant digits
+    /// - `precision-increment/0.05` - Round to increment
+    ///
+    /// - Parameter String: The invalid precision specification.
     case invalidPrecision(String)
+    
+    /// An integer width specification is malformed or invalid.
+    ///
+    /// Valid formats include:
+    /// - `integer-width/0000` - Minimum padding
+    /// - `integer-width/+000` - Truncation
+    /// - `integer-width/##00` - Min/max digits
+    ///
+    /// - Parameter String: The invalid integer width specification.
     case invalidIntegerWidth(String)
+    
+    /// A scale value could not be parsed as a number.
+    ///
+    /// - Parameter String: The invalid scale value.
     case invalidScale(String)
+    
+    /// A currency code is not valid (must be 3 uppercase letters).
+    ///
+    /// Valid examples: USD, EUR, GBP, JPY
+    ///
+    /// - Parameter String: The invalid currency code.
     case invalidCurrencyCode(String)
+    
+    /// A measure unit specification is malformed.
+    ///
+    /// Valid format: `measure-unit/type-subtype` (e.g., `length-meter`)
+    ///
+    /// - Parameter String: The invalid measure unit specification.
     case invalidMeasureUnit(String)
+    
+    /// A numbering system identifier is invalid.
+    ///
+    /// - Parameter String: The invalid numbering system.
     case invalidNumberingSystem(String)
+    
+    /// An option was found that is not expected in this context.
+    ///
+    /// - Parameter String: The unexpected option.
     case unexpectedOption(String)
+    
+    /// The same option was specified more than once.
+    ///
+    /// - Parameter String: The duplicate option.
     case duplicateOption(String)
 }
 
 extension SkeletonParseError: LocalizedError {
+    /// A localized description of the error.
     public var errorDescription: String? {
         switch self {
         case .invalidToken(let token):
@@ -38,16 +91,81 @@ extension SkeletonParseError: LocalizedError {
     }
 }
 
-/// Parses ICU number skeleton strings into `SkeletonOptions`.
+/// Parses ICU number skeleton strings into structured `SkeletonOptions`.
+///
+/// The parser follows the ICU Number Skeleton specification, where tokens are
+/// separated by spaces (U+0020) and can be combined to create complex formatting rules.
+///
+/// ## Token Separator Specification
+///
+/// Per ICU specification, tokens are separated by **spaces only**:
+/// - ✅ Valid: `"currency/USD .00"`
+/// - ❌ Invalid: `"currency/USD\t.00"` (tabs not supported)
+/// - ❌ Invalid: `"currency/USD\n.00"` (newlines not supported)
+///
+/// ## Example Usage
+///
+/// ```swift
+/// let parser = SkeletonParser()
+///
+/// // Parse a simple skeleton
+/// let options = try parser.parse("currency/USD .00")
+/// // options.unit == .currency(code: "USD")
+/// // options.precision == .fractionDigits(min: 2, max: 2)
+///
+/// // Parse a complex skeleton
+/// let complex = try parser.parse("currency/EUR .00 sign-accounting group-auto")
+/// // Multiple options combined
+///
+/// // Handle errors
+/// do {
+///     let invalid = try parser.parse("currency/INVALID")
+/// } catch SkeletonParseError.invalidCurrencyCode(let code) {
+///     print("Invalid currency: \(code)")
+/// }
+/// ```
+///
+/// ## Parser Validation
+///
+/// The parser includes robust validation:
+/// - Empty value detection (e.g., `"scale/"` → `.invalidScale("")`)
+/// - Integer width validation (must have at least one '0')
+/// - Error message preservation (full token in errors)
+/// - Token classification (intelligent pattern recognition)
+/// - Component validation (non-empty measure unit parts)
+///
+/// ## Supported Tokens
+///
+/// See `ICUNumberSkeletonFormatStyle` documentation for a complete list of supported tokens.
 public struct SkeletonParser: Sendable {
 
+    /// Creates a new skeleton parser.
     public init() {}
 
     /// Parses a skeleton string into `SkeletonOptions`.
     ///
-    /// - Parameter skeleton: The ICU number skeleton string to parse.
-    /// - Returns: The parsed options.
-    /// - Throws: `SkeletonParseError` if the skeleton is invalid.
+    /// This method tokenizes the skeleton string (splitting on spaces) and parses
+    /// each token according to ICU Number Skeleton specification. Tokens are processed
+    /// left to right, and later tokens can override earlier ones for conflicting options.
+    ///
+    /// ## Example
+    /// ```swift
+    /// let parser = SkeletonParser()
+    ///
+    /// // Simple parsing
+    /// let options = try parser.parse("percent .0")
+    /// // options.unit == .percent
+    /// // options.precision == .fractionDigits(min: 1, max: 1)
+    ///
+    /// // Complex parsing with multiple options
+    /// let complex = try parser.parse("""
+    ///     currency/USD .00 rounding-mode-half-up sign-always
+    /// """)
+    /// ```
+    ///
+    /// - Parameter skeleton: The ICU number skeleton string to parse. Tokens must be separated by spaces.
+    /// - Returns: The parsed options containing all formatting rules.
+    /// - Throws: `SkeletonParseError` if the skeleton contains invalid tokens or malformed options.
     public func parse(_ skeleton: String) throws -> SkeletonOptions {
         var options = SkeletonOptions()
 

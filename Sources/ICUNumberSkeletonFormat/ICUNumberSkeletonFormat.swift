@@ -145,10 +145,31 @@ public struct ICUNumberSkeletonFormatStyle<Value: BinaryFloatingPoint>: FormatSt
 
     /// Creates a new format style with the given skeleton string.
     ///
+    /// The skeleton string is parsed according to ICU Number Skeleton specification.
+    /// Tokens are separated by spaces and can be combined to create complex formatting rules.
+    ///
+    /// ## Example
+    /// ```swift
+    /// // Currency with precision
+    /// let style = ICUNumberSkeletonFormatStyle<Double>(
+    ///     skeleton: "currency/USD .00"
+    /// )
+    /// style.format(1234.56) // "$1,234.56"
+    ///
+    /// // Multiple options combined
+    /// let complex = ICUNumberSkeletonFormatStyle<Double>(
+    ///     skeleton: "currency/EUR .00 sign-accounting",
+    ///     locale: Locale(identifier: "de_DE")
+    /// )
+    /// complex.format(-100) // "(100,00 €)"
+    /// ```
+    ///
     /// - Parameters:
-    ///   - skeleton: The ICU number skeleton string.
+    ///   - skeleton: The ICU number skeleton string. Tokens are space-separated per ICU specification.
     ///   - locale: The locale to use for formatting. Defaults to the current locale.
-    /// - Note: If the skeleton is invalid, formatting will fall back to default number formatting.
+    ///
+    /// - Note: If the skeleton is invalid, formatting will fall back to default number formatting
+    ///         without throwing an error. Use `SkeletonParser` directly if you need error handling.
     public init(skeleton: String, locale: Locale = .current) {
         self.skeleton = skeleton
         self.locale = locale
@@ -158,8 +179,22 @@ public struct ICUNumberSkeletonFormatStyle<Value: BinaryFloatingPoint>: FormatSt
 
     /// Creates a new format style with pre-parsed skeleton options.
     ///
+    /// Use this initializer when you've already parsed a skeleton string or want to
+    /// programmatically construct formatting options without using skeleton syntax.
+    ///
+    /// ## Example
+    /// ```swift
+    /// var options = SkeletonOptions()
+    /// options.unit = .currency(code: "USD")
+    /// options.precision = .fractionDigits(min: 2, max: 2)
+    /// options.signDisplay = .accounting
+    ///
+    /// let style = ICUNumberSkeletonFormatStyle<Double>(options: options)
+    /// style.format(-100) // "($100.00)"
+    /// ```
+    ///
     /// - Parameters:
-    ///   - options: The skeleton options to use.
+    ///   - options: The skeleton options to use for formatting.
     ///   - locale: The locale to use for formatting. Defaults to the current locale.
     public init(options: SkeletonOptions, locale: Locale = .current) {
         self.options = options
@@ -167,6 +202,32 @@ public struct ICUNumberSkeletonFormatStyle<Value: BinaryFloatingPoint>: FormatSt
         self.skeleton = ""
     }
 
+    /// Formats the given value according to the skeleton options.
+    ///
+    /// This method applies all formatting rules specified in the skeleton, including:
+    /// - Notation (scientific, compact, etc.)
+    /// - Units (currency, percent, measure units)
+    /// - Precision (fraction digits, significant digits)
+    /// - Rounding modes
+    /// - Sign display
+    /// - Grouping separators
+    /// - And all other skeleton options
+    ///
+    /// Special floating-point values are handled as follows:
+    /// - `NaN` → "NaN"
+    /// - `+Infinity` → "∞"
+    /// - `-Infinity` → "-∞"
+    ///
+    /// ## Example
+    /// ```swift
+    /// let style = ICUNumberSkeletonFormatStyle<Double>(skeleton: "currency/USD .00")
+    /// style.format(1234.56) // "$1,234.56"
+    /// style.format(.infinity) // "∞"
+    /// style.format(.nan) // "NaN"
+    /// ```
+    ///
+    /// - Parameter value: The numeric value to format.
+    /// - Returns: A formatted string representation of the value.
     public func format(_ value: Value) -> String {
         let doubleValue = Double(value)
 
