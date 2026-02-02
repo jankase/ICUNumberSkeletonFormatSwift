@@ -16,7 +16,7 @@ public enum IntegerWidthHelper {
         options: SkeletonOptions,
         locale: Locale
     ) -> String {
-        let decimalSeparator = Locale.current.decimalSeparator ?? "."
+        let decimalSeparator = locale.decimalSeparator ?? "."
         let parts = formattedString.components(separatedBy: decimalSeparator)
 
         guard let integerPart = parts.first else { return formattedString }

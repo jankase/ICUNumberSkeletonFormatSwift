@@ -28,7 +28,9 @@ public struct PercentFormattingStrategy: NumberFormattingStrategy {
         let formattedNumber = Decimal(value).formatted(format)
 
         // Get the localized percent symbol
-        let percentSymbol = effectiveLocale.percentSymbol ?? "%"
+        let formatter = NumberFormatter()
+        formatter.locale = effectiveLocale
+        let percentSymbol = formatter.percentSymbol ?? "%"
 
         return formattedNumber + percentSymbol
     }

@@ -312,8 +312,10 @@ struct SkeletonCombinationTests {
             skeleton: "@@@@ sign-always group-off",
             locale: usLocale
         )
-        #expect(style.format(12345.0) == "+12350")
-        #expect(style.format(-12345.0) == "-12350")
+        // 12345 rounded to 4 significant digits with half-even rounding gives 12340
+        // (the 5th digit is 5, and we round the 4th digit (4) to nearest even, which is 4)
+        #expect(style.format(12345.0) == "+12340")
+        #expect(style.format(-12345.0) == "-12340")
     }
 
     // MARK: - Integer Width Combinations
