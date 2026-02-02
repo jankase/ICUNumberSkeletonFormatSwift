@@ -174,13 +174,27 @@ struct SkeletonCombinationTests {
     }
 
     // MARK: - Percent + Precision Combinations
+    // Note: Per ICU spec, percent does NOT multiply by 100. Use scale/100 if needed.
 
-    @Test("Percent with precision-integer")
+    @Test("Percent with precision-integer - no auto multiply")
     func percentWithIntegerPrecision() {
         let style = ICUNumberSkeletonFormatStyle<Double>(
             skeleton: "percent precision-integer",
             locale: usLocale
         )
+        // ICU spec: percent does NOT multiply by 100
+        #expect(style.format(25.0) == "25%")
+        #expect(style.format(50.0) == "50%")
+        #expect(style.format(100.0) == "100%")
+    }
+
+    @Test("Percent with scale/100 - multiply by 100")
+    func percentWithScale100() {
+        let style = ICUNumberSkeletonFormatStyle<Double>(
+            skeleton: "percent scale/100 precision-integer",
+            locale: usLocale
+        )
+        // With scale/100, decimals are multiplied by 100
         #expect(style.format(0.25) == "25%")
         #expect(style.format(0.5) == "50%")
         #expect(style.format(1.0) == "100%")
@@ -192,9 +206,10 @@ struct SkeletonCombinationTests {
             skeleton: "percent .0",
             locale: usLocale
         )
-        #expect(style.format(0.255) == "25.5%")
-        #expect(style.format(0.5) == "50.0%")
-        #expect(style.format(0.333) == "33.3%")
+        // ICU spec: percent does NOT multiply by 100
+        #expect(style.format(25.5) == "25.5%")
+        #expect(style.format(50.0) == "50.0%")
+        #expect(style.format(33.3) == "33.3%")
     }
 
     @Test("Percent with .00 precision and sign-always")
@@ -203,8 +218,9 @@ struct SkeletonCombinationTests {
             skeleton: "percent .00 sign-always",
             locale: usLocale
         )
-        #expect(style.format(0.25) == "+25.00%")
-        #expect(style.format(-0.25) == "-25.00%")
+        // ICU spec: percent does NOT multiply by 100
+        #expect(style.format(25.0) == "+25.00%")
+        #expect(style.format(-25.0) == "-25.00%")
         #expect(style.format(0.0) == "+0.00%")
     }
 
@@ -410,8 +426,9 @@ struct SkeletonCombinationTests {
             skeleton: "percent .0 rounding-mode-half-up sign-except-zero",
             locale: usLocale
         )
-        #expect(style.format(0.255) == "+25.5%")
-        #expect(style.format(-0.255) == "-25.5%")
+        // ICU spec: percent does NOT multiply by 100
+        #expect(style.format(25.55) == "+25.6%")
+        #expect(style.format(-25.55) == "-25.6%")
         #expect(style.format(0.0) == "0.0%")
     }
 

@@ -45,17 +45,30 @@ struct ICUNumberSkeletonFormatStyleTests {
     }
 
     // MARK: - Percent Tests
+    // Note: Per ICU spec, percent does NOT multiply by 100. It only adds the % symbol.
+    // Use "percent scale/100" to multiply by 100 before formatting.
 
-    @Test("Format percent")
+    @Test("Format percent - no auto multiply")
     func formatPercent() {
         let style = ICUNumberSkeletonFormatStyle<Double>(skeleton: "percent", locale: usLocale)
+        // ICU spec: percent does NOT multiply by 100
+        #expect(style.format(25.0) == "25%")
+        #expect(style.format(0.25) == "0.25%")
+    }
+
+    @Test("Format percent with scale/100 - multiply by 100")
+    func formatPercentWithScale() {
+        let style = ICUNumberSkeletonFormatStyle<Double>(skeleton: "percent scale/100", locale: usLocale)
+        // With scale/100, 0.25 becomes 25%
         #expect(style.format(0.25) == "25%")
+        #expect(style.format(0.5) == "50%")
     }
 
     @Test("Format percent with convenience method")
     func formatPercentConvenience() {
         let style = ICUNumberSkeletonFormatStyle<Double>.percent(locale: usLocale)
-        #expect(style.format(0.5) == "50%")
+        // ICU spec: percent does NOT multiply by 100
+        #expect(style.format(50.0) == "50%")
     }
 
     // MARK: - Scientific Notation Tests
@@ -764,16 +777,10 @@ struct SignDisplayTests {
             skeleton: "percent sign-except-zero",
             locale: usLocale
         )
-        
-        let positiveResult = style.format(0.25)
-        #expect(positiveResult.contains("+") || positiveResult.contains("25"))
-        
-        let negativeResult = style.format(-0.25)
-        #expect(negativeResult.contains("-") || negativeResult.contains("25"))
-        
-        let zeroResult = style.format(0.0)
-        #expect(!zeroResult.contains("+"))
-        #expect(!zeroResult.contains("-"))
+        // ICU spec: percent does NOT multiply by 100
+        #expect(style.format(25.0) == "+25%")
+        #expect(style.format(-25.0) == "-25%")
+        #expect(style.format(0.0) == "0%")
     }
 
     // MARK: - Integer Type Tests

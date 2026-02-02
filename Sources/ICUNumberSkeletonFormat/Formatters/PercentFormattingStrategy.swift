@@ -1,25 +1,41 @@
 import Foundation
 
 /// Formatting strategy for percent values.
+///
+/// According to ICU Number Skeleton specification, the `percent` unit does NOT
+/// automatically multiply by 100. It only displays the number with a percent sign.
+/// - Input: 25 → Output: "25%"
+/// - Input: 0.3 → Output: "0.3%"
+///
+/// To multiply by 100 before formatting, use `percent scale/100` or the shorthand `%x100`.
 public struct PercentFormattingStrategy: NumberFormattingStrategy {
 
     public init() {}
 
     public func format(_ value: Double, options: SkeletonOptions, locale: Locale) -> String {
         let effectiveLocale = NumberingSystemHelper.applyNumberingSystem(to: locale, options: options)
-        var format = Decimal.FormatStyle.Percent(locale: effectiveLocale)
+
+        // Per ICU spec: percent does NOT multiply by 100, it only adds the % symbol
+        // Use regular Decimal.FormatStyle and append percent symbol
+        var format = Decimal.FormatStyle(locale: effectiveLocale)
 
         format = applyPrecision(to: format, options: options)
         format = applyGrouping(to: format, options: options)
         format = applySign(to: format, value: value, options: options)
+        format = applyDecimalSeparator(to: format, options: options)
         format = applyRounding(to: format, options: options)
 
-        return Decimal(value).formatted(format)
+        let formattedNumber = Decimal(value).formatted(format)
+
+        // Get the localized percent symbol
+        let percentSymbol = effectiveLocale.percentSymbol ?? "%"
+
+        return formattedNumber + percentSymbol
     }
 
     // MARK: - Private Helpers
 
-    private func applyPrecision(to format: Decimal.FormatStyle.Percent, options: SkeletonOptions) -> Decimal.FormatStyle.Percent {
+    private func applyPrecision(to format: Decimal.FormatStyle, options: SkeletonOptions) -> Decimal.FormatStyle {
         guard let precision = options.precision else { return format }
 
         switch precision {
@@ -41,7 +57,7 @@ public struct PercentFormattingStrategy: NumberFormattingStrategy {
         }
     }
 
-    private func applyGrouping(to format: Decimal.FormatStyle.Percent, options: SkeletonOptions) -> Decimal.FormatStyle.Percent {
+    private func applyGrouping(to format: Decimal.FormatStyle, options: SkeletonOptions) -> Decimal.FormatStyle {
         guard let grouping = options.grouping else { return format }
 
         switch grouping {
@@ -52,7 +68,7 @@ public struct PercentFormattingStrategy: NumberFormattingStrategy {
         }
     }
 
-    private func applySign(to format: Decimal.FormatStyle.Percent, value: Double, options: SkeletonOptions) -> Decimal.FormatStyle.Percent {
+    private func applySign(to format: Decimal.FormatStyle, value: Double, options: SkeletonOptions) -> Decimal.FormatStyle {
         guard let signDisplay = options.signDisplay else { return format }
 
         let isZero = value == 0.0 || value == -0.0
@@ -69,7 +85,18 @@ public struct PercentFormattingStrategy: NumberFormattingStrategy {
         }
     }
 
-    private func applyRounding(to format: Decimal.FormatStyle.Percent, options: SkeletonOptions) -> Decimal.FormatStyle.Percent {
+    private func applyDecimalSeparator(to format: Decimal.FormatStyle, options: SkeletonOptions) -> Decimal.FormatStyle {
+        guard let separator = options.decimalSeparator else { return format }
+
+        switch separator {
+        case .auto:
+            return format.decimalSeparator(strategy: .automatic)
+        case .always:
+            return format.decimalSeparator(strategy: .always)
+        }
+    }
+
+    private func applyRounding(to format: Decimal.FormatStyle, options: SkeletonOptions) -> Decimal.FormatStyle {
         guard let roundingMode = options.roundingMode else { return format }
         return format.rounded(rule: RoundingRuleMapper.map(roundingMode))
     }

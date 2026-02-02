@@ -36,8 +36,8 @@ import Foundation
 /// - `compact-long`: Compact notation with long form (e.g., 1 thousand)
 ///
 /// ### Units
-/// - `percent`: Format as percentage
-/// - `permille`: Format as permille (‰)
+/// - `percent`: Add percent symbol (does NOT multiply by 100; use `scale/100` for that)
+/// - `permille`: Add permille symbol (‰) (does NOT multiply by 1000; use `scale/1000` for that)
 /// - `currency/XXX`: Format as currency with ISO code (e.g., `currency/USD`)
 /// - `measure-unit/type-subtype`: Format with measure unit (e.g., `measure-unit/length-meter`)
 ///
