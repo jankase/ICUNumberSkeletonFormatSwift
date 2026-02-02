@@ -35,15 +35,13 @@ struct ICUNumberSkeletonFormatStyleTests {
     @Test("Format currency USD")
     func formatCurrencyUSD() {
         let style = ICUNumberSkeletonFormatStyle<Double>(skeleton: "currency/USD", locale: usLocale)
-        let result = style.format(1234.56)
-        #expect(result.contains("1,234.56") || result.contains("$"))
+        #expect(style.format(1234.56) == "$1,234.56")
     }
 
     @Test("Format currency with convenience method")
     func formatCurrencyConvenience() {
         let style = ICUNumberSkeletonFormatStyle<Double>.currency("USD", locale: usLocale)
-        let result = style.format(99.99)
-        #expect(result.contains("99.99") || result.contains("$"))
+        #expect(style.format(99.99) == "$99.99")
     }
 
     // MARK: - Percent Tests
@@ -51,15 +49,13 @@ struct ICUNumberSkeletonFormatStyleTests {
     @Test("Format percent")
     func formatPercent() {
         let style = ICUNumberSkeletonFormatStyle<Double>(skeleton: "percent", locale: usLocale)
-        let result = style.format(0.25)
-        #expect(result.contains("25") || result.contains("%"))
+        #expect(style.format(0.25) == "25%")
     }
 
     @Test("Format percent with convenience method")
     func formatPercentConvenience() {
         let style = ICUNumberSkeletonFormatStyle<Double>.percent(locale: usLocale)
-        let result = style.format(0.5)
-        #expect(result.contains("50") || result.contains("%"))
+        #expect(style.format(0.5) == "50%")
     }
 
     // MARK: - Scientific Notation Tests
@@ -97,96 +93,65 @@ struct ICUNumberSkeletonFormatStyleTests {
     @Test("Format with sign always")
     func formatSignAlways() {
         let style = ICUNumberSkeletonFormatStyle<Double>(skeleton: "sign-always", locale: usLocale)
-        let result = style.format(123.0)
-        #expect(result.contains("+"))
+        #expect(style.format(123.0) == "+123")
+        #expect(style.format(-123.0) == "-123")
     }
 
     @Test("Format with sign never")
     func formatSignNever() {
         let style = ICUNumberSkeletonFormatStyle<Double>(skeleton: "sign-never", locale: usLocale)
-        let result = style.format(-123.0)
-        #expect(!result.contains("-"))
+        #expect(style.format(-123.0) == "123")
+        #expect(style.format(123.0) == "123")
     }
 
     @Test("Format with sign-except-zero for positive value")
     func formatSignExceptZeroPositive() {
         let style = ICUNumberSkeletonFormatStyle<Double>(skeleton: "sign-except-zero", locale: usLocale)
-        let result = style.format(123.0)
-        // Positive numbers should show the + sign
-        #expect(result.contains("+"))
+        #expect(style.format(123.0) == "+123")
     }
 
     @Test("Format with sign-except-zero for negative value")
     func formatSignExceptZeroNegative() {
         let style = ICUNumberSkeletonFormatStyle<Double>(skeleton: "sign-except-zero", locale: usLocale)
-        let result = style.format(-123.0)
-        // Negative numbers should show the - sign
-        #expect(result.contains("-"))
+        #expect(style.format(-123.0) == "-123")
     }
 
     @Test("Format with sign-except-zero for zero value")
     func formatSignExceptZeroZero() {
         let style = ICUNumberSkeletonFormatStyle<Double>(skeleton: "sign-except-zero", locale: usLocale)
-        let result = style.format(0.0)
-        // Zero should not show any sign
-        #expect(!result.contains("+"))
-        #expect(!result.contains("-"))
-        #expect(result.contains("0"))
+        #expect(style.format(0.0) == "0")
     }
 
     @Test("Format with sign-except-zero for negative zero")
     func formatSignExceptZeroNegativeZero() {
         let style = ICUNumberSkeletonFormatStyle<Double>(skeleton: "sign-except-zero", locale: usLocale)
-        let result = style.format(-0.0)
-        // Negative zero should be treated as zero and not show any sign
-        #expect(!result.contains("+"))
-        #expect(!result.contains("-"))
-        #expect(result.contains("0"))
+        #expect(style.format(-0.0) == "0")
     }
 
     @Test("Format with sign-except-zero combined with precision")
     func formatSignExceptZeroCombined() {
         let style = ICUNumberSkeletonFormatStyle<Double>(skeleton: "sign-except-zero .00", locale: usLocale)
-        
-        let positiveResult = style.format(123.456)
-        #expect(positiveResult.contains("+"))
-        #expect(positiveResult.contains("123.46"))
-        
-        let negativeResult = style.format(-123.456)
-        #expect(negativeResult.contains("-"))
-        #expect(negativeResult.contains("123.46"))
-        
-        let zeroResult = style.format(0.0)
-        #expect(!zeroResult.contains("+"))
-        #expect(!zeroResult.contains("-"))
-        #expect(zeroResult.contains("0.00"))
+        #expect(style.format(123.456) == "+123.46")
+        #expect(style.format(-123.456) == "-123.46")
+        #expect(style.format(0.0) == "0.00")
     }
 
     @Test("Format with sign-accounting-except-zero for positive value")
     func formatSignAccountingExceptZeroPositive() {
         let style = ICUNumberSkeletonFormatStyle<Double>(skeleton: "sign-accounting-except-zero", locale: usLocale)
-        let result = style.format(123.0)
-        // Positive numbers should show the + sign with accounting format
-        #expect(result.contains("+") || result.contains("123"))
+        #expect(style.format(123.0) == "+123")
     }
 
     @Test("Format with sign-accounting-except-zero for negative value")
     func formatSignAccountingExceptZeroNegative() {
         let style = ICUNumberSkeletonFormatStyle<Double>(skeleton: "sign-accounting-except-zero", locale: usLocale)
-        let result = style.format(-123.0)
-        // Negative numbers in accounting format may use parentheses or minus sign
-        #expect(result.contains("-") || result.contains("(") || result.contains(")"))
+        #expect(style.format(-123.0) == "-123")
     }
 
     @Test("Format with sign-accounting-except-zero for zero value")
     func formatSignAccountingExceptZeroZero() {
         let style = ICUNumberSkeletonFormatStyle<Double>(skeleton: "sign-accounting-except-zero", locale: usLocale)
-        let result = style.format(0.0)
-        // Zero should not show any sign or accounting markers
-        #expect(!result.contains("+"))
-        #expect(!result.contains("-"))
-        #expect(!result.contains("("))
-        #expect(result.contains("0"))
+        #expect(style.format(0.0) == "0")
     }
 
     // MARK: - Scale Tests
@@ -237,16 +202,15 @@ struct ICUNumberSkeletonFormatStyleTests {
     @Test("Format with combined currency and precision")
     func formatCombinedCurrencyPrecision() {
         let style = ICUNumberSkeletonFormatStyle<Double>(skeleton: "currency/USD .00", locale: usLocale)
-        let result = style.format(1234.5)
-        #expect(result.contains("1,234.50") || result.contains("$"))
+        #expect(style.format(1234.5) == "$1,234.50")
     }
 
     @Test("Format with complex skeleton")
     func formatComplexSkeleton() {
         let skeleton = "currency/USD .00 group-auto sign-always rounding-mode-half-up"
         let style = ICUNumberSkeletonFormatStyle<Double>(skeleton: skeleton, locale: usLocale)
-        let result = style.format(1234.555)
-        #expect(result.contains("+") || result.contains("$"))
+        #expect(style.format(1234.555) == "+$1,234.56")
+        #expect(style.format(-1234.555) == "-$1,234.56")
     }
 
     // MARK: - Extension Tests
@@ -353,15 +317,13 @@ struct ICUNumberSkeletonFormatStyleTests {
     @Test("Format permille")
     func formatPermille() {
         let style = ICUNumberSkeletonFormatStyle<Double>(skeleton: "permille", locale: usLocale)
-        let result = style.format(0.025)
-        #expect(result.contains("25") || result.contains("‰"))
+        #expect(style.format(0.025) == "25\u{2030}")
     }
 
     @Test("Format permille with precision")
     func formatPermilleWithPrecision() {
         let style = ICUNumberSkeletonFormatStyle<Double>(skeleton: "permille .0", locale: usLocale)
-        let result = style.format(0.0255)
-        #expect(result.contains("25.5") || result.contains("‰"))
+        #expect(style.format(0.0255) == "25.5\u{2030}")
     }
 
     // MARK: - Numbering System Tests
@@ -369,15 +331,13 @@ struct ICUNumberSkeletonFormatStyleTests {
     @Test("Format with Latin numbering system")
     func formatLatinNumberingSystem() {
         let style = ICUNumberSkeletonFormatStyle<Double>(skeleton: "latin", locale: usLocale)
-        let result = style.format(12345.0)
-        #expect(result.contains("12") && result.contains("345"))
+        #expect(style.format(12345.0) == "12,345")
     }
 
     @Test("Format with numbering system override")
     func formatNumberingSystemOverride() {
         let style = ICUNumberSkeletonFormatStyle<Double>(skeleton: "numbering-system/latn", locale: usLocale)
-        let result = style.format(12345.0)
-        #expect(result.contains("12") && result.contains("345"))
+        #expect(style.format(12345.0) == "12,345")
     }
 
     // MARK: - Integer Width Tests
@@ -385,27 +345,20 @@ struct ICUNumberSkeletonFormatStyleTests {
     @Test("Format with integer width minimum")
     func formatIntegerWidthMin() {
         let style = ICUNumberSkeletonFormatStyle<Double>(skeleton: "integer-width/000 group-off", locale: usLocale)
-        let result = style.format(12.0)
-        #expect(result.contains("012"))
+        #expect(style.format(12.0) == "012")
     }
 
     @Test("Format with integer width truncation")
     func formatIntegerWidthTruncate() {
         let style = ICUNumberSkeletonFormatStyle<Double>(skeleton: "integer-width/+00 group-off", locale: usLocale)
-        let result = style.format(1234.0)
-        // Should truncate to 2 digits: 34
-        #expect(result.contains("34"))
+        #expect(style.format(1234.0) == "34")
     }
 
     @Test("Format with integer width min and max")
     func formatIntegerWidthMinMax() {
         let style = ICUNumberSkeletonFormatStyle<Double>(skeleton: "integer-width/##00 group-off", locale: usLocale)
-        let result1 = style.format(5.0)
-        #expect(result1.contains("05") || result1.contains("5"))
-        
-        let result2 = style.format(12345.0)
-        // Should limit to 4 digits
-        #expect(result2.contains("2345"))
+        #expect(style.format(5.0) == "05")
+        #expect(style.format(12345.0) == "2345")
     }
 
     // MARK: - Measure Unit Tests
@@ -501,28 +454,25 @@ struct ICUNumberSkeletonFormatStyleTests {
     func formatComplexMeasureUnit() {
         let style = ICUNumberSkeletonFormatStyle<Double>(skeleton: "measure-unit/length-kilometer .00 group-auto", locale: usLocale)
         let result = style.format(1234.567)
-        #expect(result.contains("1,234.57") || result.contains("1234.57"))
+        #expect(result.contains("1,234.57") && result.lowercased().contains("km"))
     }
 
     @Test("Format with permille, precision, and sign")
     func formatComplexPermille() {
         let style = ICUNumberSkeletonFormatStyle<Double>(skeleton: "permille .00 sign-always", locale: usLocale)
-        let result = style.format(0.0123)
-        #expect((result.contains("+") || result.hasPrefix("+")) && result.contains("12.3"))
+        #expect(style.format(0.0123) == "+12.30\u{2030}")
     }
 
     @Test("Format with integer width and scale")
     func formatIntegerWidthWithScale() {
         let style = ICUNumberSkeletonFormatStyle<Double>(skeleton: "scale/100 integer-width/0000 group-off", locale: usLocale)
-        let result = style.format(12.34)
-        #expect(result.contains("1234"))
+        #expect(style.format(12.34) == "1234")
     }
 
     @Test("Format with numbering system and currency")
     func formatNumberingSystemCurrency() {
         let style = ICUNumberSkeletonFormatStyle<Double>(skeleton: "currency/USD numbering-system/latn", locale: usLocale)
-        let result = style.format(1234.56)
-        #expect(result.contains("1,234.56") || result.contains("$"))
+        #expect(style.format(1234.56) == "$1,234.56")
     }
 }
 
