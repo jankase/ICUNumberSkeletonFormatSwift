@@ -477,4 +477,38 @@ public struct SkeletonOptions: Sendable, Equatable, Codable, Hashable {
     /// options.signDisplay = .accounting
     /// ```
     public init() {}
+
+    // MARK: - Equatable
+
+    public static func == (lhs: SkeletonOptions, rhs: SkeletonOptions) -> Bool {
+        lhs.notation == rhs.notation &&
+        lhs.unit == rhs.unit &&
+        lhs.unitWidth == rhs.unitWidth &&
+        lhs.precision == rhs.precision &&
+        lhs.roundingMode == rhs.roundingMode &&
+        lhs.integerWidth == rhs.integerWidth &&
+        lhs.scale == rhs.scale &&
+        lhs.grouping == rhs.grouping &&
+        lhs.signDisplay == rhs.signDisplay &&
+        lhs.decimalSeparator == rhs.decimalSeparator &&
+        lhs.numberingSystem == rhs.numberingSystem &&
+        lhs.latinDigits == rhs.latinDigits
+    }
+
+    // MARK: - Hashable
+
+    public func hash(into hasher: inout Hasher) {
+        hasher.combine(notation)
+        hasher.combine(unit)
+        hasher.combine(unitWidth)
+        hasher.combine(precision)
+        hasher.combine(roundingMode)
+        hasher.combine(integerWidth)
+        hasher.combine(scale)
+        hasher.combine(grouping)
+        hasher.combine(signDisplay)
+        hasher.combine(decimalSeparator)
+        hasher.combine(numberingSystem)
+        hasher.combine(latinDigits)
+    }
 }
