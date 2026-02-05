@@ -77,11 +77,11 @@ euroStyle.format(1234.56) // "1.234,56 €"
 
 ```swift
 let percentStyle = ICUNumberSkeletonFormatStyle<Double>(skeleton: "percent")
-percentStyle.format(0.25) // "25%"
+percentStyle.format(0.25) // "0.25%"
 
 // Or use the convenience method
 let style = ICUNumberSkeletonFormatStyle<Double>.percent()
-style.format(0.5) // "50%"
+style.format(50) // "50%"
 ```
 
 ### Scientific Notation
