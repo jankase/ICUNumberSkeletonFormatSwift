@@ -1,4 +1,5 @@
 import Foundation
+import ICUNumberSkeletonFormat
 
 // MARK: - Infinity and NaN Handling Examples
 

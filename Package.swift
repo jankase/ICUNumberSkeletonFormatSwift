@@ -23,6 +23,10 @@ let package = Package(
             name: "ICUNumberSkeletonFormat",
             dependencies: []
         ),
+        .executableTarget(
+            name: "Examples",
+            dependencies: ["ICUNumberSkeletonFormat"]
+        ),
         .testTarget(
             name: "ICUNumberSkeletonFormatTests",
             dependencies: ["ICUNumberSkeletonFormat"]
